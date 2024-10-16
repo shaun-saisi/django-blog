@@ -1,41 +1,61 @@
-#!groovy
+pipeline {
+    agent any
 
-node {
-    try {
+    environment {
+        VIRTUAL_ENV = 'env' // Name of your virtual environment directory
+        PYTHON_VERSION = 'python3.10' // Adjust if you need a specific Python version
+        REPO_URL = 'https://github.com/shaun-saisi/django-blog.git'
+        SLACK_CREDENTIALS = 'a2f872c3-1e35-4e51-8c90-5bacf458a49a' // Adjust this with your actual credential ID
+        CHANNEL = '#deployment' // Slack channel for notifications
+    }
+
+    stages {
         stage('Checkout') {
-            checkout scm
-
-            sh 'git log HEAD^..HEAD --pretty="%h %an - %s" > GIT_CHANGES'
-            def lastChanges = readFile('GIT_CHANGES')
-            slackSend color: "warning", message: "Started `${env.JOB_NAME}#${env.BUILD_NUMBER}`\n\n_The changes:_\n${lastChanges}"
-        }
-
-        stage('Test') {
-            sh 'virtualenv env -p python3.10'
-            
-            // Check if the virtual environment was created
-            sh 'ls -l env/bin/'  // List contents of the virtual environment's bin directory
-
-            // Activate the virtual environment and run the command in one line
-            dir('website') {
-                sh '''
-                . ../env/bin/activate  # Navigate back to the parent directory
-                env/bin/python manage.py test --testrunner=blog.tests.test_runners.NoDbTestRunner
-                '''
+            steps {
+                // Checkout the code from the repository
+                git url: "${REPO_URL}", branch: 'master'
             }
         }
 
-        stage('Deploy') {
-            sh './deployment/deploy_prod.sh'
+        stage('Setup Virtual Environment') {
+            steps {
+                // Create and activate virtual environment
+                sh "virtualenv ${VIRTUAL_ENV} -p ${PYTHON_VERSION}"
+                sh ". ${VIRTUAL_ENV}/bin/activate"
+                // Install dependencies
+                sh "${VIRTUAL_ENV}/bin/pip install -r requirements.txt"
+            }
         }
 
-        stage('Publish results') {
-            slackSend color: "good", message: "Build successful: `${env.JOB_NAME}#${env.BUILD_NUMBER}` <${env.BUILD_URL}|Open in Jenkins>"
+        stage('Run Tests') {
+            steps {
+                script {
+                    // Activate the virtual environment and run tests
+                    sh """
+                        . ${VIRTUAL_ENV}/bin/activate
+                        ${VIRTUAL_ENV}/bin/python3 manage.py test --testrunner=blog.tests.test_runners.NoDbTestRunner
+                    """
+                }
+            }
         }
 
-    } catch (err) {
-        slackSend color: "danger", message: "Build failed :face_with_head_bandage: \n`${env.JOB_NAME}#${env.BUILD_NUMBER}` <${env.BUILD_URL}|Open in Jenkins>"
-        throw err
+        stage('Notify Slack') {
+            steps {
+                script {
+                    // Notify Slack of build status
+                    slackSend(channel: "${CHANNEL}", color: 'good', message: "Build completed successfully!")
+                }
+            }
+        }
+    }
+
+    post {
+        failure {
+            script {
+                // Notify Slack on failure
+                slackSend(channel: "${CHANNEL}", color: 'danger', message: "Build failed!")
+            }
+        }
     }
 }
 
