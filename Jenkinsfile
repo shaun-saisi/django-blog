@@ -12,11 +12,12 @@ node {
 
         stage('Test') {
             sh 'virtualenv env -p python3.10'
-            sh '. env/bin/activate'
-            sh 'env/bin/pip install -r requirements.txt'
-            // Change to the 'website' directory before running tests
+            // Activate the virtual environment and run the command in one line
             dir('website') {
-                sh 'env/bin/python3.10 manage.py test --testrunner=blog.tests.test_runners.NoDbTestRunner'
+                sh '''
+                . env/bin/activate
+                env/bin/python manage.py test --testrunner=blog.tests.test_runners.NoDbTestRunner
+                '''
             }
         }
 
