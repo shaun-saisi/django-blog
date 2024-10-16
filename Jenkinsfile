@@ -27,18 +27,7 @@ pipeline {
             }
         }
 
-        stage('Run Tests') {
-            steps {
-                script {
-                    // Change directory to 'website' and run the tests
-                    sh """
-                        . ${VIRTUAL_ENV}/bin/activate
-                        cd website
-                        ${VIRTUAL_ENV}/bin/python3 manage.py test --testrunner=blog.tests.test_runners.NoDbTestRunner
-                    """
-                }
-            }
-        }
+        // Removed the 'Run Tests' stage since you requested not to run tests.
 
         stage('Notify Slack') {
             steps {
