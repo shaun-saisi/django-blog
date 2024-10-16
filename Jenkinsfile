@@ -12,10 +12,14 @@ node {
 
         stage('Test') {
             sh 'virtualenv env -p python3.10'
+            
+            // Check if the virtual environment was created
+            sh 'ls -l env/bin/'  // List contents of the virtual environment's bin directory
+
             // Activate the virtual environment and run the command in one line
             dir('website') {
                 sh '''
-                . env/bin/activate
+                . ../env/bin/activate  # Navigate back to the parent directory
                 env/bin/python manage.py test --testrunner=blog.tests.test_runners.NoDbTestRunner
                 '''
             }
